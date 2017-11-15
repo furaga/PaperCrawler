@@ -66,7 +66,7 @@ namespace PaperCrawler
 
             foreach (var c in crawls)
             {
-                var siggraph = new PaperCrawlerLib.SIGGRAPH();
+                var siggraph = new PaperCrawlerLib.CrawlKesen();
                 string result = siggraph.Crawl(c.URL, c.HTMLPath);
                 richTextBox1.Text += result + "\n";
             }
@@ -85,7 +85,7 @@ namespace PaperCrawler
                 string filename = Path.GetFileNameWithoutExtension(path);
                 string conferenceName = filename.Replace('_', ' ');
 
-                var siggraph = new PaperCrawlerLib.SIGGRAPH();
+                var siggraph = new PaperCrawlerLib.CrawlKesen();
                 var papers = siggraph.Scrape(path, conferenceName);
                 if (papers != null)
                 {

@@ -11,7 +11,7 @@ using AngleSharp.Extensions;
 
 namespace PaperCrawlerLib
 {
-    public class SIGGRAPH
+    public class CrawlKesen
     {
         public class Paper
         {
