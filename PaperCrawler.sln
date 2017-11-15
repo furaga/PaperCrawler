@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaperCrawler", "PaperCrawler\PaperCrawler.csproj", "{739B9633-2F24-4EBB-A2E0-9D6E34492392}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PaperCrawlerLib", "PaperCrawlerLib\PaperCrawlerLib.csproj", "{9E04ED1F-56D4-4B14-8808-DF3D174BFE1F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{739B9633-2F24-4EBB-A2E0-9D6E34492392}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{739B9633-2F24-4EBB-A2E0-9D6E34492392}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{739B9633-2F24-4EBB-A2E0-9D6E34492392}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{739B9633-2F24-4EBB-A2E0-9D6E34492392}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E04ED1F-56D4-4B14-8808-DF3D174BFE1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E04ED1F-56D4-4B14-8808-DF3D174BFE1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E04ED1F-56D4-4B14-8808-DF3D174BFE1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E04ED1F-56D4-4B14-8808-DF3D174BFE1F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
