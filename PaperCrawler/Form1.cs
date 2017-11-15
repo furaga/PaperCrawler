@@ -17,21 +17,12 @@ namespace PaperCrawler
         class Crawl
         {
             public string URL { get; set; }
-            public string HTMLPath { get; set; }
+            public string HTMLSavePath { get; set; }
         }
 
-        class Scrape
-        {
-            public string HTMLPath { get; set; }
-            public string JSPath { get; set; }
-            public string ConferenceName { get; set; }
-        }
-
-        List<Crawl> crawls = new List<Crawl>();
-        List<Scrape> scrapes = new List<Scrape>();
 
         string HTMLDirectory= "./data/html";
-        string JSDirectory = "./data/js/";
+        string JSONDirectory = "./data/json";
 
 
         public Form1()
@@ -39,14 +30,15 @@ namespace PaperCrawler
             InitializeComponent();
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private void crawlButton_Click(object sender, EventArgs e)
         {
+            List<Crawl> crawls = new List<Crawl>();
             for (int year = 2005; year <= 2017; year++)
             {
                 crawls.Add(new Crawl()
                 {
                     URL = $"http://kesen.realtimerendering.com/sig{year}.html",
-                    HTMLPath = System.IO.Path.Combine(HTMLDirectory, $"SIGGRAPH_{year}.html"),
+                    HTMLSavePath = System.IO.Path.Combine(HTMLDirectory, $"SIGGRAPH_{year}.html"),
                 });
             }
 
@@ -54,8 +46,8 @@ namespace PaperCrawler
             {
                 crawls.Add(new Crawl()
                 {
-                    URL = $"http://kesen.realtimerendering.com/siga{year}Papers.html",
-                    HTMLPath = System.IO.Path.Combine(HTMLDirectory, $"SIGGRAPH_Asia_{year}.html"),
+                    URL = $"http://kesen.realtimerendering.com/siga{year}Papers.htm",
+                    HTMLSavePath = System.IO.Path.Combine(HTMLDirectory, $"SIGGRAPH_Asia_{year}.html"),
                 });
             }
 
@@ -66,17 +58,20 @@ namespace PaperCrawler
 
             foreach (var c in crawls)
             {
+                richTextBox1.Text += ">>>> " + c.URL + " -> "+ c.HTMLSavePath + " >>>\n";
+                richTextBox1.Invalidate();
                 var siggraph = new PaperCrawlerLib.CrawlKesen();
-                string result = siggraph.Crawl(c.URL, c.HTMLPath);
+                string result = siggraph.Crawl(c.URL, c.HTMLSavePath);
                 richTextBox1.Text += result + "\n";
+                richTextBox1.Invalidate();
             }
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void scrapeButton_Click(object sender, EventArgs e)
         {
-            if (Directory.Exists(JSDirectory) == false)
+            if (Directory.Exists(JSONDirectory) == false)
             {
-                Directory.CreateDirectory(JSDirectory);
+                Directory.CreateDirectory(JSONDirectory);
             }
 
             var htmls = System.IO.Directory.GetFiles(HTMLDirectory).Where(path => path.EndsWith("html")).ToList();
@@ -87,20 +82,30 @@ namespace PaperCrawler
 
                 var siggraph = new PaperCrawlerLib.CrawlKesen();
                 var papers = siggraph.Scrape(path, conferenceName);
+
                 if (papers != null)
                 {
                     var json = JsonConvert.SerializeObject(papers, Formatting.Indented);
-                    string jsPath = Path.Combine(JSDirectory, filename + ".js");
-                    System.IO.File.WriteAllText(jsPath, "export default " + json);
+                    string jsPath = Path.Combine(JSONDirectory, filename + ".json");
+                    System.IO.File.WriteAllText(jsPath, json);
                     richTextBox1.Text += $"scrape: {papers.Count} jsons -> {jsPath}\n";
+                    richTextBox1.Invalidate();
                 }
                 else
                 {
                     richTextBox1.Text += "scrape: failed. \n";
                 }
             }
-
         }
 
+        private void openHTMLOutputDirButton_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start(System.IO.Path.GetFullPath(HTMLDirectory));
+        }
+
+        private void openJSONOutputDirButton_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start(System.IO.Path.GetFullPath(JSONDirectory));
+        }
     }
 }
