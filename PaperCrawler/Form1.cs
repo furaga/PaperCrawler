@@ -46,6 +46,11 @@ namespace PaperCrawler
             InitializeComponent();
         }
 
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            richTextBox1.HideSelection = false;
+        }
+
         private async void crawlButton_Click(object sender, EventArgs e)
         {
             await Task.Run(() =>
