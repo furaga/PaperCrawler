@@ -19,6 +19,8 @@ namespace PaperCrawlerLib
 {
     public class CrawlUIST : CrawlBase
     {
+        // crawl
+
         public override void Crawl(string saveDirectory, Action<string> log)
         {
             string listPath = System.IO.Path.Combine(saveDirectory, $"UIST_list.html");
@@ -55,17 +57,10 @@ namespace PaperCrawlerLib
                     Download(contentURL, savePath, log);
                 }
             }
-
-            //Download($"http://confer.csail.mit.edu/static/conf/uist2017/data/papers.json", System.IO.Path.Combine(saveDirectory, $"UIST_2017.json"), log);
-            //Download($"https://dl.acm.org/tab_about.cfm?id=2984751&type=proceeding&sellOnline=1&parent_id=2984751&parent_type=proceeding&title=Proceedings%2520of%2520the%252029th%2520Annual%2520Symposium%2520on%2520User%2520Interface%2520Software%2520and%2520Technology&toctitle=The%252029th%2520Annual%2520ACM%2520Symposium%2520on%2520User%2520Interface%2520Software%2520and%2520Technology&tocissue_date=&notoc=0&usebody=tabbody&tocnext_id=&tocnext_str=&tocprev_id=&tocprev_str=&toctype=conference", System.IO.Path.Combine(saveDirectory, $"UIST_2016.html"), log);
         }
 
-        List<string> selectJSONs(string htmlDirectory)
-        {
-            var jsons = System.IO.Directory.GetFiles(htmlDirectory).Where(path =>
-                Path.GetFileName(path).StartsWith("UIST_") && Path.GetFileName(path).EndsWith(".json")).ToList();
-            return jsons;
-        }
+
+        // scrape
 
         List<string> selectHtmls(string htmlDirectory)
         {
@@ -104,8 +99,8 @@ namespace PaperCrawlerLib
                         if (p != null)
                         {
                             description = p.Text();
+                            ok = true;
                         }
-                        ok = true;
                     }
                 }
             }
@@ -114,19 +109,21 @@ namespace PaperCrawlerLib
 
         bool tryReadAsAuthor(IElement td, List<string> authors)
         {
-            bool ok = false;
-            if (td != null)
+            if (td == null)
             {
-                var aTags = td.QuerySelectorAll("a").ToList();
-                foreach (var a in aTags)
+                return false;
+            }
+            bool ok = false;
+            var aTags = td.QuerySelectorAll("a").ToList();
+            foreach (var a in aTags)
+            {
+                var href = a.GetAttribute("href");
+                if (!href.StartsWith("author"))
                 {
-                    var href = a.GetAttribute("href");
-                    if (href.StartsWith("author"))
-                    {
-                        authors.Add(a.Text());
-                        ok = true;
-                    }
+                    continue;
                 }
+                authors.Add(a.Text());
+                ok = true;
             }
             return ok;
         }
@@ -135,32 +132,33 @@ namespace PaperCrawlerLib
         {
             title = "";
             officialSiteURL = "";
-            if (td != null)
+            if (td == null)
             {
-                if (td.GetAttribute("colspan") == "1")
-                {
-                    var a = td.QuerySelector("a");
-                    if (a != null)
-                    {
-                        string href = a.GetAttribute("href");
-                        if (href.StartsWith("author"))
-                        {
-                            return false;
-                        }
-                        title = a.Text();
-                        officialSiteURL = "https://dl.acm.org/" + href;
-                        return true;
-                    }
-                }
+                return false;
             }
-            return false;
+            if (td.GetAttribute("colspan") != "1")
+            {
+                return false;
+            }
+            var a = td.QuerySelector("a");
+            if (a == null)
+            {
+                return false;
+            }
+            string href = a.GetAttribute("href");
+            if (href.StartsWith("author"))
+            {
+                return false;
+            }
+            title = a.Text();
+            officialSiteURL = "https://dl.acm.org/" + href;
+            return true;
         }
 
         Dictionary<string, List<Paper>> parseACM(string htmlDirectory, Action<string> log)
         {
             try
             {
-
                 var result = new Dictionary<string, List<Paper>>();
                 var htmls = selectHtmls(htmlDirectory);
                 foreach (var path in htmls)
@@ -187,10 +185,8 @@ namespace PaperCrawlerLib
 
                     for (int i = 0; i < tds.Count; i++)
                     {
-                        var td = tds[i];
 
-                        bool ok = tryReadAsTitle(td, out title, out url);
-                        if (ok)
+                        if (tryReadAsTitle(tds[i], out title, out url))
                         {
                             if (paper.Title != null)
                             {
@@ -206,13 +202,13 @@ namespace PaperCrawlerLib
                             paper.Title = title;
                             paper.OfficialSiteURL = url;
                         }
-                        ok = tryReadAsAuthor(td, authors);
-                        if (ok)
+
+                        if (tryReadAsAuthor(tds[i], authors))
                         {
                             paper.Authors = authors.ToArray();
-                       }
-                        ok = tryDescription(td, out description);
-                        if (ok)
+                        }
+
+                        if (tryDescription(tds[i], out description))
                         {
                             paper.Description = description;
                         }
@@ -232,53 +228,6 @@ namespace PaperCrawlerLib
         public override Dictionary<string, List<Paper>> Scrape(string htmlDirectory, Action<string> log)
         {
             return parseACM(htmlDirectory, log);
-        }
-
-        Dictionary<string, List<Paper>> parseUIST2017(string htmlDirectory, Action<string> log)
-        {
-            try
-            {
-                var result = new Dictionary<string, List<Paper>>();
-                var htmls = selectJSONs(htmlDirectory);
-
-                foreach (var path in htmls)
-                {
-                    var json = File.ReadAllText(path);
-
-                    var jarray = JsonConvert.DeserializeObject<JObject>(json.Substring("entities=".Length));
-
-                    string filename = Path.GetFileNameWithoutExtension(path);
-                    string conferenceName = filename.Replace('_', ' ');
-                    List<Paper> paperList = new List<Paper>();
-
-                    var cur = jarray.First;
-                    while (cur != null)
-                    {
-                        var paper = new Paper();
-                        paper.Title = cur.First.Value<string>("title");
-                        paper.Description = cur.First.Value<string>("abstract");
-                        paper.Conference = conferenceName;
-                        paper.OfficialSiteURL = "http://confer.csail.mit.edu/uist2017/paper#!" + (cur as JProperty).Name;
-                        paper.Authors = cur.First["authors"].Select(author =>
-                        {
-                            return (author as JObject).Value<string>("name");
-                        }).ToArray();
-                        paper.OtherURLs = new string[0];
-                        paperList.Add(paper);
-
-                        cur = cur.Next;
-                    }
-
-                    result[filename] = paperList;
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.Write(ex.ToString() + "\n" + ex.StackTrace);
-                return new Dictionary<string, List<Paper>>();
-            }
         }
     }
 }
