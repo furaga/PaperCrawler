@@ -14,88 +14,64 @@ namespace PaperCrawler
 {
     public partial class Form1 : Form
     {
-        class Crawl
-        {
-            public string URL { get; set; }
-            public string HTMLSavePath { get; set; }
-        }
-
-
         string HTMLDirectory= "./data/html";
         string JSONDirectory = "./data/json";
 
+        void log(string text)
+        {
+            richTextBox1.Invoke((MethodInvoker)delegate
+            {
+                richTextBox1.AppendText(text + "\n");
+            });
+        }
+
+        void savePapers(Dictionary<string, List<PaperCrawlerLib.Paper>> papers, string directory)
+        {
+            foreach (var kv in papers)
+            {
+                if (kv.Value != null)
+                {
+                    var json = JsonConvert.SerializeObject(kv.Value, Formatting.Indented);
+                    string jsPath = Path.Combine(directory, kv.Key + ".json");
+                    System.IO.File.WriteAllText(jsPath, json);
+                    log($"scrape: {kv.Value.Count} jsons -> {jsPath}");
+                }
+            }
+        }
+
+        //////////////////////////////////////////////////////////////
 
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void crawlButton_Click(object sender, EventArgs e)
+        private async void crawlButton_Click(object sender, EventArgs e)
         {
-            List<Crawl> crawls = new List<Crawl>();
-            for (int year = 2005; year <= 2017; year++)
+            await Task.Run(() =>
             {
-                crawls.Add(new Crawl()
+                if (Directory.Exists(HTMLDirectory) == false)
                 {
-                    URL = $"http://kesen.realtimerendering.com/sig{year}.html",
-                    HTMLSavePath = System.IO.Path.Combine(HTMLDirectory, $"SIGGRAPH_{year}.html"),
-                });
-            }
-
-            for (int year = 2008; year <= 2017; year++)
-            {
-                crawls.Add(new Crawl()
-                {
-                    URL = $"http://kesen.realtimerendering.com/siga{year}Papers.htm",
-                    HTMLSavePath = System.IO.Path.Combine(HTMLDirectory, $"SIGGRAPH_Asia_{year}.html"),
-                });
-            }
-
-            if (Directory.Exists(HTMLDirectory) == false)
-            {
-                Directory.CreateDirectory(HTMLDirectory);
-            }
-
-            foreach (var c in crawls)
-            {
-                richTextBox1.Text += ">>>> " + c.URL + " -> "+ c.HTMLSavePath + " >>>\n";
-                richTextBox1.Invalidate();
-                var siggraph = new PaperCrawlerLib.CrawlKesen();
-                string result = siggraph.Crawl(c.URL, c.HTMLSavePath);
-                richTextBox1.Text += result + "\n";
-                richTextBox1.Invalidate();
-            }
+                    Directory.CreateDirectory(HTMLDirectory);
+                }
+                //            new PaperCrawlerLib.CrawlKesen().Crawl(HTMLDirectory, log);
+                new PaperCrawlerLib.CrawlUIST().Crawl(HTMLDirectory, log);
+            });
         }
 
-        private void scrapeButton_Click(object sender, EventArgs e)
+        private async void scrapeButton_Click(object sender, EventArgs e)
         {
-            if (Directory.Exists(JSONDirectory) == false)
+            await Task.Run(() =>
             {
-                Directory.CreateDirectory(JSONDirectory);
-            }
-
-            var htmls = System.IO.Directory.GetFiles(HTMLDirectory).Where(path => path.EndsWith("html")).ToList();
-            foreach (var path in htmls)
-            {
-                string filename = Path.GetFileNameWithoutExtension(path);
-                string conferenceName = filename.Replace('_', ' ');
-
-                var siggraph = new PaperCrawlerLib.CrawlKesen();
-                var papers = siggraph.Scrape(path, conferenceName);
-
-                if (papers != null)
+                if (Directory.Exists(JSONDirectory) == false)
                 {
-                    var json = JsonConvert.SerializeObject(papers, Formatting.Indented);
-                    string jsPath = Path.Combine(JSONDirectory, filename + ".json");
-                    System.IO.File.WriteAllText(jsPath, json);
-                    richTextBox1.Text += $"scrape: {papers.Count} jsons -> {jsPath}\n";
-                    richTextBox1.Invalidate();
+                    Directory.CreateDirectory(JSONDirectory);
                 }
-                else
-                {
-                    richTextBox1.Text += "scrape: failed. \n";
-                }
-            }
+                //      var kesenPapers = new PaperCrawlerLib.CrawlKesen().Scrape(HTMLDirectory, log);
+                //      savePapers(kesenPapers, JSONDirectory);
+                var uistPapers = new PaperCrawlerLib.CrawlUIST().Scrape(HTMLDirectory, log);
+                savePapers(uistPapers, JSONDirectory);
+            });
         }
 
         private void openHTMLOutputDirButton_Click(object sender, EventArgs e)

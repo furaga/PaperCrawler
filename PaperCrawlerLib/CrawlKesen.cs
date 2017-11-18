@@ -8,84 +8,93 @@ using AngleSharp.Parser.Html;
 using AngleSharp.Dom;
 using AngleSharp.Dom.Html;
 using AngleSharp.Extensions;
+using System.IO;
 
 namespace PaperCrawlerLib
 {
-    public class CrawlKesen
+    public class CrawlKesen : CrawlBase
     {
-        public class Paper
+        public override void Crawl(string saveDirectory, Action<string> log)
         {
-            public string Conference { get; set; }
-            public string Title { get; set; }
-            public string[] Authors { get; set; }
-            public string OfficialSiteURL { get; set; }
-            public string[] OtherURLs { get; set; }
-        }
-
-
-        public string Crawl(string url, string savepath)
-        {
-            try
+            for (int year = 2005; year <= 2017; year++)
             {
-                var wc = new System.Net.WebClient();
-                wc.DownloadFile(url, savepath);
-                wc.Dispose();
-                return $"crawled: {url} -> {savepath}";
+                Download(
+                    $"http://kesen.realtimerendering.com/sig{year}.html",
+                    System.IO.Path.Combine(saveDirectory, $"SIGGRAPH_{year}.html"), log);
             }
-            catch (Exception ex)
+
+            for (int year = 2008; year <= 2017; year++)
             {
-                return ex.ToString();
+                Download(
+                    $"http://kesen.realtimerendering.com/siga{year}Papers.htm",
+                   System.IO.Path.Combine(saveDirectory, $"SIGGRAPH_Asia_{year}.html"), log);
             }
         }
 
-        public List<Paper> Scrape(string htmlPath, string conferenceName)
+        List<string> scrapeHtmls(string htmlDirectory)
+        {
+            var htmls = System.IO.Directory.GetFiles(htmlDirectory).Where(path => Path.GetFileName(path).StartsWith("SIGGRAPH_")).ToList();
+            return htmls;
+        }
+
+        public override Dictionary<string, List<Paper>> Scrape(string htmlDirectory, Action<string> log)
         {
             try
             {
-                var parser = new HtmlParser();
-                var document = parser.Parse(System.IO.File.ReadAllText(htmlPath));
-
-                var h2s = document.QuerySelectorAll("h2").ToList();
-                var dls = document.QuerySelectorAll("dl").ToList();
-                System.Diagnostics.Debug.Assert(h2s.Count == dls.Count);
-
-
-                List<Paper> paperList = new List<Paper>();
-
-                for (int i = 0; i < h2s.Count; i++)
+                var result = new Dictionary<string, List<Paper>>();
+                var htmls = scrapeHtmls(htmlDirectory);
+                foreach (var path in htmls)
                 {
-                    var h2 = h2s[i].Text();
+                    string filename = Path.GetFileNameWithoutExtension(path);
+                    string conferenceName = filename.Replace('_', ' ');
 
-                    var dl = dls[i];
-                    var dts = dl.QuerySelectorAll("dt").Where(dt =>false == string.IsNullOrWhiteSpace(dt.InnerHtml)).ToList();
-                    var dds = dl.QuerySelectorAll("dd").Where(dt => false == string.IsNullOrWhiteSpace(dt.InnerHtml)).ToList();
-                    if (dts.Count != dds.Count)
+                    var parser = new HtmlParser();
+                    var document = parser.Parse(System.IO.File.ReadAllText(path));
+
+                    var h2s = document.QuerySelectorAll("h2").ToList();
+                    var dls = document.QuerySelectorAll("dl").ToList();
+                    System.Diagnostics.Debug.Assert(h2s.Count == dls.Count);
+
+
+                    List<Paper> paperList = new List<Paper>();
+
+                    for (int i = 0; i < h2s.Count; i++)
                     {
-                        Console.WriteLine("scaraped: failed in " + h2 + " of " + htmlPath);
-                        continue;
+                        var h2 = h2s[i].Text();
+
+                        var dl = dls[i];
+                        var dts = dl.QuerySelectorAll("dt").Where(dt => false == string.IsNullOrWhiteSpace(dt.InnerHtml)).ToList();
+                        var dds = dl.QuerySelectorAll("dd").Where(dt => false == string.IsNullOrWhiteSpace(dt.InnerHtml)).ToList();
+                        if (dts.Count != dds.Count)
+                        {
+                            Console.WriteLine("scaraped: failed in " + h2 + " of " + path);
+                            continue;
+                        }
+
+                        for (int k = 0; k < dts.Count; k++)
+                        {
+                            var dt = dts[k];
+                            var dd = dds[k];
+
+                            Paper paper = new Paper();
+
+                            var title = dt.QuerySelector("b");
+                            var links = dt.QuerySelectorAll("a");
+                            paper.Conference = conferenceName;
+                            paper.Title = title.Text();
+                            paper.OtherURLs = links.Select(lnk => lnk.GetAttribute("href")).ToArray();
+
+                            paper.OfficialSiteURL = links.Length >= 1 ? links[0].GetAttribute("href") : "";
+                            paper.Authors = dd.Text().Split(',').Select(s => s.Trim()).ToArray();
+
+                            paperList.Add(paper);
+                        }
                     }
 
-                    for (int k = 0; k < dts.Count; k++)
-                    {
-                        var dt = dts[k];
-                        var dd = dds[k];
-
-                        Paper paper = new Paper();
-
-                        var title = dt.QuerySelector("b");
-                        var links = dt.QuerySelectorAll("a");
-                        paper.Conference = conferenceName;
-                        paper.Title = title.Text();
-                        paper.OtherURLs = links.Select(lnk => lnk.GetAttribute("href")).ToArray();
-
-                        paper.OfficialSiteURL = links.Length >= 1 ? links[0].GetAttribute("href") : "";
-                        paper.Authors = dd.Text().Split(',').Select(s => s.Trim()).ToArray();
-
-                        paperList.Add(paper);
-                    }
+                    result[filename] = paperList;
                 }
 
-                return paperList;
+                return result;
             }
             catch (Exception ex)
             {
